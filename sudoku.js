@@ -167,13 +167,6 @@ var get_box_index = function(cell_index, dimension) {
   return box_row_index * box_dimension + box_column_index;
 }
 
-var remove_possibilities = function(possible, set) {
-  for (var i = 0; i < set.length; i++) {
-    remove(possible, set[i]);
-  }
-  return possible;
-}
-
 var string_to_array = function(puzzle, size, dimension){
   puzzle = puzzle.split("");
   for (var i = 0; i < size; i++) {
@@ -232,6 +225,22 @@ var array_equals = function(array1, array2) {
   return false;
 }
 
+var remove_possibilities = function(possible, set) {
+  for (var i = 0; i < set.length; i++) {
+    remove(possible, set[i]);
+  }
+  return possible;
+}
+
+var remove = function(array, element) {
+  var index = includes(array, element);
+
+  if (index !== -1) {
+    return array.splice(index, 1);
+  }
+  return -1;
+}
+
 var flatten = function(array_of_arrays) {
   var sum = [];
   for (var i = 0; i < array_of_arrays.length; i++) {
@@ -250,15 +259,6 @@ var includes = function(array, element) {
     if (array[i] == element) {
       return i;
     }
-  }
-  return -1;
-}
-
-var remove = function(array, element) {
-  var index = includes(array, element);
-
-  if (index !== -1) {
-    return array.splice(index, 1);
   }
   return -1;
 }
