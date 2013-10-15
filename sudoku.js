@@ -1,18 +1,19 @@
 function Sudoku(puzzle){
   var start_time = new Date().getTime();
-  this.puzzle = puzzle;
-  this.prepare();
+  this.prepare(puzzle);
   this.solve();
   this.time = new Date().getTime() - start_time;
 }
 
-Sudoku.prototype.prepare = function() {
+Sudoku.prototype.prepare = function(puzzle) {
   this.index_methods = [get_row_index, get_column_index, get_box_index]
-  this.puzzle = this.puzzle.split("");
-  this.size = this.puzzle.length;
+  
+  this.size = puzzle.length;
   this.box_size = Math.sqrt(this.size);
   this.set_sum = get_set_sum(this.box_size);
-  this.set_possible();
+  
+  this.puzzle = string_to_array(puzzle, this.size, this.box_size);
+
   this.previous_state = [];
 }
 
@@ -137,12 +138,14 @@ Sudoku.prototype.first_unsolved_cell = function() {
   return -1;
 }
 
-Sudoku.prototype.set_possible = function(){
-  for (var i = 0; i < this.size; i++) {
-    if (this.puzzle[i] == "0") {
-      this.puzzle[i] = create_possibilities(this.box_size);
+var string_to_array = function(puzzle, size, box_size){
+  puzzle = puzzle.split("");
+  for (var i = 0; i < size; i++) {
+    if (puzzle[i] == "0") {
+      puzzle[i] = create_possibilities(box_size);
     }
   }
+  return puzzle;
 }
 
 Sudoku.prototype.print = function(){
