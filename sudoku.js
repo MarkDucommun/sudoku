@@ -1,23 +1,39 @@
 function Sudoku(puzzle){
   this.puzzle = puzzle;
   this.prepare();
-  this.solve();
+  return this.solve();
 }
 
 Sudoku.prototype.prepare = function() {
+
+  this.index_methods = [foo, baz, bar]
+
   this.puzzle = this.puzzle.split("");
 
   this.size = this.puzzle.length;
-  size = this.size;
 
   this.box_size = Math.sqrt(this.size);
-  box_size = this.box_size;
-
-  box_dimension = Math.sqrt(this.box_size);
   
   this.set_sum = get_set_sum(this.box_size);
 
   this.set_possible();
+
+  this.previous_state = [];
+}
+
+var foo = function(cell_index, box_size) {
+  return Math.floor(cell_index / box_size);
+}
+
+var baz = function(cell_index, box_size) {
+  return cell_index % box_size;
+}
+
+var bar = function(cell_index, box_size) {
+  var box_dimension = Math.sqrt(box_size);
+  var box_row_index = Math.floor(foo(cell_index, box_size) / box_dimension);
+  var box_column_index = Math.floor(baz(cell_index, box_size) / box_dimension);
+  return box_row_index * box_dimension + box_column_index;
 }
 
 Sudoku.prototype.set_possible = function(){
@@ -29,20 +45,48 @@ Sudoku.prototype.set_possible = function(){
 }
 
 Sudoku.prototype.solve = function() {
-  var previous_state = [];
-  var go = true;
+  var changed = true;
+  var unsolved = true;
 
-  while (!this.solved() && go) {
+  while (unsolved && changed) {
     for (var i = 0; i < this.size; i++) {
       if (this.puzzle[i] instanceof Array) {
         this.puzzle[i] = this.solve_cell(i);
       }
     }
-    array_equals(previous_state, this.puzzle) ? go = false : go = true;
-    previous_state = copy_array(this.puzzle);
+    unsolved = !this.solved();
+    changed = this.changed();
+    this.previous_state = copy_array(this.puzzle);
   }
-  this.print();
-  return this.puzzle.join("");
+
+  if (unsolved) {
+    var unsolved_cell = this.first_unsolved_cell();
+    for (var i = 0; i < this.puzzle[unsolved_cell].length && unsolved; i++) {
+      var copy = copy_array(this.puzzle);    
+      copy[unsolved_cell] = this.puzzle[unsolved_cell][i];
+      copy = new Sudoku(array_to_string(copy));
+
+      if (copy.solved()) {
+        unsolved = false;
+        this.puzzle = copy.puzzle;
+      }
+    }
+  }
+
+  return this; 
+}
+
+Sudoku.prototype.first_unsolved_cell = function() {
+  for (var i = 0; i < this.size; i++) {
+    if (this.puzzle[i] instanceof Array) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+Sudoku.prototype.changed = function() {
+  return !array_equals(this.previous_state, this.puzzle);
 }
 
 Sudoku.prototype.solve_cell = function(cell_index) {
@@ -57,23 +101,23 @@ Sudoku.prototype.solve_cell = function(cell_index) {
 Sudoku.prototype.eliminate_final_values = function(cell_index) {
   var possible = this.puzzle[cell_index];
 
-  possible = remove_possibilities(possible, this.get_final_set(cell_index, get_row_index));
-  possible = remove_possibilities(possible, this.get_final_set(cell_index, get_column_index)); 
-  possible = remove_possibilities(possible, this.get_final_set(cell_index, get_box_index));
+  possible = remove_possibilities(possible, this.get_final_set(cell_index, foo));
+  possible = remove_possibilities(possible, this.get_final_set(cell_index, baz)); 
+  possible = remove_possibilities(possible, this.get_final_set(cell_index, bar));
 
   return possible;  
 }
 
 Sudoku.prototype.eliminate_possible_values = function(cell_index) {
   var possible = [];
+
   possible.push(copy_array(this.puzzle[cell_index]));
   possible.push(copy_array(this.puzzle[cell_index]));
   possible.push(copy_array(this.puzzle[cell_index]));
 
-  // console.log(cell_index);
-  possible[0] = remove_possibilities(possible[0], this.get_possible_set(cell_index, get_row_index));
-  possible[1] = remove_possibilities(possible[1], this.get_possible_set(cell_index, get_column_index));
-  possible[2] = remove_possibilities(possible[2], this.get_possible_set(cell_index, get_box_index));
+  possible[0] = remove_possibilities(possible[0], this.get_possible_set(cell_index, foo));
+  possible[1] = remove_possibilities(possible[1], this.get_possible_set(cell_index, baz));
+  possible[2] = remove_possibilities(possible[2], this.get_possible_set(cell_index, bar));
 
   var final = this.puzzle[cell_index];
   for (var i = 0; i < 3; i++) {
@@ -85,10 +129,13 @@ Sudoku.prototype.eliminate_possible_values = function(cell_index) {
 }
 
 Sudoku.prototype.solved = function() {
-  for (var i = 0; i < this.size; i = i + this.box_size) {
-    var set = this.get_final_set(i, get_row_index)
-    if (!this.set_solved(set)) {
-      return false;
+  var methods = [foo, baz, bar];
+  for (var j = 0; j < 3; j++) {
+    for (var i = 0; i < this.size; i = i + this.box_size) {
+      var set = this.get_final_set(i, methods[j]);
+      if (!this.set_solved(set)) {
+        return false;
+      }
     }
   }
   return true;
@@ -99,28 +146,27 @@ Sudoku.prototype.set_solved = function(set) {
   for (var i = 0; i < set.length; i++) {
     sum += parseInt(set[i]);
   }
-  sum == this.set_sum ? sum = true : sum = false;
-  return sum;
+  return sum == this.set_sum;
 }
 
-Sudoku.prototype.get_final_set = function(cell_index, get_set_index) {
+Sudoku.prototype.get_final_set = function(cell_index, index_method) {
   var set = [];
-  var set_index = get_set_index(cell_index);
+  var set_index = index_method(cell_index, this.box_size);
 
   for (var i = 0; i < this.size; i++) {
-    if (get_set_index(i) == set_index && !(this.puzzle[i] instanceof Array)) {
+    if (index_method(i, this.box_size) == set_index && !(this.puzzle[i] instanceof Array)) {
       set.push(this.puzzle[i]);
     }
   }
   return set;
 }
 
-Sudoku.prototype.get_possible_set = function(cell_index, get_set_index) {
+Sudoku.prototype.get_possible_set = function(cell_index, index_method) {
   var set = [];
-  var set_index = get_set_index(cell_index);
+  var set_index = index_method(cell_index, this.box_size);
 
   for (var i = 0; i < this.size; i++) {
-    if (i != cell_index && get_set_index(i) == set_index && this.puzzle[i] instanceof Array) {
+    if (i != cell_index && index_method(i, this.box_size) == set_index && this.puzzle[i] instanceof Array) {
       set.push(this.puzzle[i]);
     }
   }
@@ -128,7 +174,7 @@ Sudoku.prototype.get_possible_set = function(cell_index, get_set_index) {
 }
 
 Sudoku.prototype.print = function(){
-  string = "";
+  var string = "";
   for (var i = 0; i < this.size; i++){
     if (i % this.box_size == 0){
       string += "\n\n";
@@ -139,8 +185,17 @@ Sudoku.prototype.print = function(){
   console.log("");
 }
 
+var array_to_string = function(array) {
+  for (var i = 0; i < array.length; i++) {
+    if (array[i] instanceof Array) {
+      array[i] = "0";
+    }
+  }
+  return array.join("");
+}
+
 var get_set_sum = function(num) {
-  sum = 0;
+  var sum = 0;
   for (var i = 1; i <= num; i++){
     sum += i;
   }
@@ -160,20 +215,6 @@ var remove_possibilities = function(possible, set) {
     remove(possible, set[i]);
   }
   return possible;
-}
-
-var get_row_index = function(cell_index) {
-  return Math.floor(cell_index / box_size);
-}
-
-var get_column_index = function(cell_index) {
-  return cell_index % box_size;
-}
-
-var get_box_index = function(cell_index) {
-  var box_row_index = Math.floor(get_row_index(cell_index) / box_dimension);
-  var box_column_index = Math.floor(get_column_index(cell_index) / box_dimension);
-  return box_row_index * box_dimension + box_column_index;
 }
 
 var copy_array = function(array) {
@@ -219,7 +260,7 @@ var includes = function(array, element) {
 }
 
 var remove = function(array, element) {
-  index = includes(array, element);
+  var index = includes(array, element);
 
   if (index !== -1) {
     return array.splice(index, 1);
@@ -227,19 +268,19 @@ var remove = function(array, element) {
   return -1;
 }
 
-// new Sudoku("0003040000201000");
-// new Sudoku("0004000000100100");
+new Sudoku("0003040000201000").print();
+new Sudoku("0004000000100100").print();
 
-new Sudoku("105802000090076405200400819019007306762083090000061050007600030430020501600308900");
-new Sudoku("005030081902850060600004050007402830349760005008300490150087002090000600026049503");
-new Sudoku("290500007700000400004738012902003064800050070500067200309004005000080700087005109");
-p = new Sudoku("080020000040500320020309046600090004000640501134050700360004002407230600000700450");
-new Sudoku("608730000200000460000064820080005701900618004031000080860200039050000100100456200");
-new Sudoku("370000001000700005408061090000010000050090460086002030000000000694005203800149500");
-new Sudoku("000689100800000029150000008403000050200005000090240801084700910500000060060410000");
-new Sudoku("030500804504200010008009000790806103000005400050000007800000702000704600610300500");
-new Sudoku("096040001100060004504810390007950043030080000405023018010630059059070830003590007");
-new Sudoku("000075400000000008080190000300001060000000034000068170204000603900000020530200000");
-new Sudoku("300000000050703008000028070700000043000000000003904105400300800100040000968000200");
-new Sudoku("096040001100060004504810390007950043030080000405023018010630059059070830003590007");
-new Sudoku("302609005500730000000000900000940000000000109000057060008500006000000003019082040");
+new Sudoku("105802000090076405200400819019007306762083090000061050007600030430020501600308900").print();
+new Sudoku("005030081902850060600004050007402830349760005008300490150087002090000600026049503").print();
+new Sudoku("290500007700000400004738012902003064800050070500067200309004005000080700087005109").print();
+new Sudoku("608730000200000460000064820080005701900618004031000080860200039050000100100456200").print();
+new Sudoku("370000001000700005408061090000010000050090460086002030000000000694005203800149500").print();
+new Sudoku("000689100800000029150000008403000050200005000090240801084700910500000060060410000").print();
+new Sudoku("030500804504200010008009000790806103000005400050000007800000702000704600610300500").print();
+new Sudoku("096040001100060004504810390007950043030080000405023018010630059059070830003590007").print();
+new Sudoku("000075400000000008080190000300001060000000034000068170204000603900000020530200000").print();
+new Sudoku("300000000050703008000028070700000043000000000003904105400300800100040000968000200").print();
+new Sudoku("096040001100060004504810390007950043030080000405023018010630059059070830003590007").print();
+new Sudoku("302609005500730000000000900000940000000000109000057060008500006000000003019082040").print();
+new Sudoku("000000000000000000000000000000000000000000000000000000000000000000000000000000000").print();
