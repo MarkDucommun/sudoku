@@ -6,13 +6,13 @@ function Sudoku(puzzle){
 }
 
 Sudoku.prototype.prepare = function(puzzle) {
-  this.index_methods = [get_row_index, get_column_index, get_box_index]
+  INDEX_METHODS = [get_row_index, get_column_index, get_box_index]
   
   this.size = puzzle.length;
-  this.box_size = Math.sqrt(this.size);
-  this.set_sum = get_set_sum(this.box_size);
+  this.dimension = Math.sqrt(this.size);
+  this.set_sum = get_set_sum(this.dimension);
   
-  this.puzzle = string_to_array(puzzle, this.size, this.box_size);
+  this.puzzle = string_to_array(puzzle, this.size, this.dimension);
 
   this.previous_state = [];
 }
@@ -20,7 +20,6 @@ Sudoku.prototype.prepare = function(puzzle) {
 Sudoku.prototype.solve = function() {
   var changed = true;
   var unsolved = true;
-  var previous_state = [];
 
   while (unsolved && changed) {
     for (var i = 0; i < this.size; i++) {
@@ -61,8 +60,8 @@ Sudoku.prototype.solve_cell = function(cell_index) {
 
 Sudoku.prototype.solved = function() {
   for (var j = 0; j < 3; j++) {
-    for (var i = 0; i < this.size; i = i + this.box_size) {
-      var set = this.get_final_set(i, this.index_methods[j]);
+    for (var i = 0; i < this.size; i = i + this.dimension) {
+      var set = this.get_final_set(i, INDEX_METHODS[j]);
       if (!this.set_solved(set)) {
         return false;
       }
@@ -84,17 +83,17 @@ Sudoku.prototype.eliminate_final_values = function(cell_index) {
   var possible = this.puzzle[cell_index];
 
   for (var i = 0; i < 3; i++) {
-    possible = remove_possibilities(possible, this.get_final_set(cell_index, this.index_methods[i]));
+    possible = remove_possibilities(possible, this.get_final_set(cell_index, INDEX_METHODS[i]));
   }
   return possible;  
 }
 
 Sudoku.prototype.get_final_set = function(cell_index, index_method) {
   var set = [];
-  var set_index = index_method(cell_index, this.box_size);
+  var set_index = index_method(cell_index, this.dimension);
 
   for (var i = 0; i < this.size; i++) {
-    if (index_method(i, this.box_size) == set_index && !(this.puzzle[i] instanceof Array)) {
+    if (index_method(i, this.dimension) == set_index && !(this.puzzle[i] instanceof Array)) {
       set.push(this.puzzle[i]);
     }
   }
@@ -106,7 +105,7 @@ Sudoku.prototype.eliminate_possible_values = function(cell_index) {
   var final = this.puzzle[cell_index];
 
   for (var i = 0; i < 3; i++) {
-    possible[i] = remove_possibilities(copy_array(this.puzzle[cell_index]), this.get_possible_set(cell_index, this.index_methods[i]));
+    possible[i] = remove_possibilities(copy_array(this.puzzle[cell_index]), this.get_possible_set(cell_index, INDEX_METHODS[i]));
   }
 
   for (var i = 0; i < 3; i++) {
@@ -119,10 +118,10 @@ Sudoku.prototype.eliminate_possible_values = function(cell_index) {
 
 Sudoku.prototype.get_possible_set = function(cell_index, index_method) {
   var set = [];
-  var set_index = index_method(cell_index, this.box_size);
+  var set_index = index_method(cell_index, this.dimension);
 
   for (var i = 0; i < this.size; i++) {
-    if (i != cell_index && index_method(i, this.box_size) == set_index && this.puzzle[i] instanceof Array) {
+    if (i != cell_index && index_method(i, this.dimension) == set_index && this.puzzle[i] instanceof Array) {
       set.push(this.puzzle[i]);
     }
   }
@@ -138,21 +137,11 @@ Sudoku.prototype.first_unsolved_cell = function() {
   return -1;
 }
 
-var string_to_array = function(puzzle, size, box_size){
-  puzzle = puzzle.split("");
-  for (var i = 0; i < size; i++) {
-    if (puzzle[i] == "0") {
-      puzzle[i] = create_possibilities(box_size);
-    }
-  }
-  return puzzle;
-}
-
 Sudoku.prototype.print = function(){
   var string = "";
   
   for (var i = 0; i < this.size; i++){
-    if (i % this.box_size == 0){
+    if (i % this.dimension == 0){
       string += "\n\n";
     }
     string += " " + this.puzzle[i] + " ";
@@ -163,27 +152,45 @@ Sudoku.prototype.print = function(){
 
 // Utility methods
 
-var get_row_index = function(cell_index, box_size) {
-  return Math.floor(cell_index / box_size);
+var get_row_index = function(cell_index, dimension) {
+  return Math.floor(cell_index / dimension);
 }
 
-var get_column_index = function(cell_index, box_size) {
-  return cell_index % box_size;
+var get_column_index = function(cell_index, dimension) {
+  return cell_index % dimension;
 }
 
-var get_box_index = function(cell_index, box_size) {
-  var box_dimension = Math.sqrt(box_size);
-  var box_row_index = Math.floor(get_row_index(cell_index, box_size) / box_dimension);
-  var box_column_index = Math.floor(get_column_index(cell_index, box_size) / box_dimension);
+var get_box_index = function(cell_index, dimension) {
+  var box_dimension = Math.sqrt(dimension);
+  var box_row_index = Math.floor(get_row_index(cell_index, dimension) / box_dimension);
+  var box_column_index = Math.floor(get_column_index(cell_index, dimension) / box_dimension);
   return box_row_index * box_dimension + box_column_index;
 }
 
-var get_set_sum = function(num) {
-  var sum = 0;
-  for (var i = 1; i <= num; i++){
-    sum += i;
+var remove_possibilities = function(possible, set) {
+  for (var i = 0; i < set.length; i++) {
+    remove(possible, set[i]);
   }
-  return sum;
+  return possible;
+}
+
+var string_to_array = function(puzzle, size, dimension){
+  puzzle = puzzle.split("");
+  for (var i = 0; i < size; i++) {
+    if (puzzle[i] == "0") {
+      puzzle[i] = create_possibilities(dimension);
+    }
+  }
+  return puzzle;
+}
+
+var array_to_string = function(array) {
+  for (var i = 0; i < array.length; i++) {
+    if (array[i] instanceof Array) {
+      array[i] = "0";
+    }
+  }
+  return array.join("");
 }
 
 var create_possibilities = function(num) {
@@ -194,20 +201,12 @@ var create_possibilities = function(num) {
   return possible.split(""); 
 }
 
-var remove_possibilities = function(possible, set) {
-  for (var i = 0; i < set.length; i++) {
-    remove(possible, set[i]);
+var get_set_sum = function(num) {
+  var sum = 0;
+  for (var i = 1; i <= num; i++){
+    sum += i;
   }
-  return possible;
-}
-
-var array_to_string = function(array) {
-  for (var i = 0; i < array.length; i++) {
-    if (array[i] instanceof Array) {
-      array[i] = "0";
-    }
-  }
-  return array.join("");
+  return sum;
 }
 
 // Array methods
