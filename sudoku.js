@@ -32,6 +32,7 @@ Sudoku.prototype.solve = function() {
     this.previous_state = copy_array(this.puzzle);
   }
 
+  // deal with any guessing
   if (unsolved) {
     var unsolved_cell = this.first_unsolved_cell();
   
